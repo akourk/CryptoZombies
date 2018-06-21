@@ -1,0 +1,237 @@
+// this program uses an inputted name to generate pseudo-random dna/features of a zombie
+// the purpose is to learn Solidity
+//	naming conventions, syntax, etc.
+
+
+// declare which version of the Solidity compiler the code should use
+pragma solidity ^0.4.19
+
+// Solidity's code is encapsulated in contracts
+// all variables and functions belong to a contract
+contract ZombieFactory {
+
+// Events are a way for your contract to communicate that something happened on the blockchain
+// to your app front-end, which can be "listening" for certain events and react. ex:
+// event IntegersAdded(uint x, uint y, uint result);
+// function add(uint _x, uint _y) public {
+//	uint result = _x + _y;
+//	IntegersAdded(_x, _y, result);	fires an event to let the app know the function was called
+//	return result;
+//	}
+
+// the app front-end could then listen for the event. A JavaScript implementation would look
+// something like this:
+// YourContract.IntegersAdded(function(error, result) {
+// 	do something with result
+// }
+
+	event NewZombie(uint zombieId, string name, uint dna);
+
+
+// uint = uint256, a 256-bit unsigned integer
+// uint8, uint16, uint32, etc... also work
+// int is a signed integer
+
+// ** is exponential operator
+// so, x = 2 ** 6; is 2^6, or x = 64
+
+	uint dnaDigits = 16;
+    
+	uint dnaModulus = 10 ** dnaDigits;
+
+// Solidity supports structs, which allows more complicated data types
+
+	struct Zombie {
+		uint dna;
+		string name;
+	}
+
+// two types of arrays, fixed array and dynamic array
+
+// Array with a fixed length of 2 elements:
+// uint[2] fixedArray;
+
+// fixed Array, can contain 5 strings:
+// string[5] stringArray;
+
+// dynamic Array - has no fixed size, can keep growing:
+// uint[] dynamicArray;
+
+// dynamic Array of structs.
+
+	Zombie[] public zombies;
+	
+// can also declare an array as public, and Solidity will automatically create a getter method for it.
+// synatax looks like this:
+// Person[] public people;
+// other contracts would then be able to read (but not write) to this array.
+// this is a useful pattern for storing public data in a contract
+
+// it's convention (but not required) to start function parameter variable names with an underscore
+// in order to differentiate them from global variables
+// call functions like this:
+// function createZombies(string _name, uint _dna) {}
+// add "private" to make it private
+// it's convention to start private function names with an underscore
+
+// in Solidity, functions are public by default. 
+// anyone (or any other contract) can call another contract's function and execute its code
+// it's good practice to mark functions as private by default, then only make public the
+// functions you want to expose
+
+	function _createZombies(string _name, uint _dna) private {
+
+// to create a person and add to array:
+// Person satoshi = Person(172, "Satoshi");
+// people.push(satoshi)
+// or:
+// people.push(Person(16, "Vitalik"));
+
+// here we're storing the id for our event
+// array.push() returns a uint of the new length of the array as uint
+// since the first item in an array has index of 0, array.push() - 1 returns the zombie
+// that we just added.
+
+		uint id = zombies.push(Zombie(_name, _dna)) - 1;
+
+// to call our event:
+
+		NewZombie(id, _name, _dna);
+	}
+
+// function declaration contains the type of the return value
+// to return a value from a function:
+// string greeting = "What's up dog?";
+// function sayHello() public returns (string) {
+// 	return greeting;
+// }
+
+// this doesn't actually change state in Solidity, e.g. it doesn't change any values or write anything
+// we could declare it as a view function, meaning it's only viewing the data but not modifying it:
+// function sayHello() public view returns (string) {
+
+// Solidity also contains pure functions, which means you're not even accesssing any data in the app:
+// function _multiply(uint a, uint b) private pure returns (uint) {
+// 	return a * b;
+// }
+
+// this function doesn't even read from the state of the app, its return value depends only on its
+// function parameters.
+
+	function _generateRandomDna(string _str) private view returns (uint) {
+
+// the hash function keccak256 is built into Ethereum, which is a version of SHA3
+// this maps an input string into a random 256-bit hexadecimal number
+// a slight change to the string will cause a large change in the hash
+// this isn't truly random.
+// secure random-number generation in blockchain is a very difficult problem
+// this method is insecure.
+
+// typecasting:
+// uint8 a = 5;
+// uint b = 6;
+// uint8 c = a * b; 		this will throw an error
+// uint8 c = a * uint8(b); 	we have to typecase b as uint8
+// this will work.
+
+		uint rand = uint(keccak256(_str));
+        
+		return rand % dnaModulus;
+	}
+
+	function createRandomZombie(string _name) public {
+		uint randDna = _generateRandomDna(_name);
+		_createZombie(_name, randDna);
+	}
+}
+
+
+
+
+
+
+// Now we need to write a JavaScript front-end that interacts with the contract.
+// Ethereum has a JavaScript library called Web3.js
+
+// // Here's how we would access our contract:
+// var abi = /* abi generated by the compiler */
+// var ZombieFactoryContract = web3.eth.contract(abi)
+// var contractAddress = /* our contract address on Ethereum after deploying */
+// var ZombieFactory = ZombieFactoryContract.at(contractAddress)
+// // `ZombieFactory` has access to our contract's public functions and events
+
+// // some sort of event listener to take the text input:
+// $("#ourButton").click(function(e) {
+//   var name = $("#nameInput").val()
+//   // Call our contract's `createRandomZombie` function:
+//   ZombieFactory.createRandomZombie(name)
+// })
+
+// // Listen for the `NewZombie` event, and update the UI
+// var event = ZombieFactory.NewZombie(function(error, result) {
+//   if (error) return
+//   generateZombie(result.zombieId, result.name, result.dna)
+// })
+
+// // take the Zombie dna, and update our image
+// function generateZombie(id, name, dna) {
+//   let dnaStr = String(dna)
+//   // pad DNA with leading zeroes if it's less than 16 characters
+//   while (dnaStr.length < 16)
+//     dnaStr = "0" + dnaStr
+
+//   let zombieDetails = {
+//     // first 2 digits make up the head. We have 7 possible heads, so % 7
+//     // to get a number 0 - 6, then add 1 to make it 1 - 7. Then we have 7
+//     // image files named "head1.png" through "head7.png" we load based on
+//     // this number:
+//     headChoice: dnaStr.substring(0, 2) % 7 + 1,
+//     // 2nd 2 digits make up the eyes, 11 variations:
+//     eyeChoice: dnaStr.substring(2, 4) % 11 + 1,
+//     // 6 variations of shirts:
+//     shirtChoice: dnaStr.substring(4, 6) % 6 + 1,
+//     // last 6 digits control color. Updated using CSS filter: hue-rotate
+//     // which has 360 degrees:
+//     skinColorChoice: parseInt(dnaStr.substring(6, 8) / 100 * 360),
+//     eyeColorChoice: parseInt(dnaStr.substring(8, 10) / 100 * 360),
+//     clothesColorChoice: parseInt(dnaStr.substring(10, 12) / 100 * 360),
+//     zombieName: name,
+//     zombieDescription: "A Level 1 CryptoZombie",
+//   }
+//   return zombieDetails
+// }
+
+// What our javascript then does is take the values generated in zombieDetails above,
+// and uses some browser-based javascript magic (we're using Vue.js) to swap out the images
+// and apply CSS filters.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
